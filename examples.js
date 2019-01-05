@@ -7,41 +7,56 @@
  | ´examples.html´ or go to http://simonbengtsson.github.io/jsPDF-AutoTable.
  |
  | To make it possible to view each example in examples.html some extra code
- | are added to the examples below. For example they return their jspdf
- | doc instance and gets generated data from the library faker.js. However you
- | can of course use this plugin how you wish and the simplest first example
- | below would look like this without any extras:
- |
- | var columns = ["ID", "Name", "Age", "City"];
- |
- | var data = [
- |     [1, "Jonathan", 25, "Gothenburg"],
- |     [2, "Simon", 23, "Gothenburg"],
- |     [3, "Hanna", 21, "Stockholm"]
- | ];
- |
- | var doc = new jsPDF('p', 'pt');
- | doc.autoTable(columns, data);
- | doc.save("table.pdf");
- |
+ | is added to the examples below. For example they return their jspdf
+ | doc instance and gets generated data from the library faker.js. See simple.html
+ | for a minimal example.
  */
 
 var faker = window.faker;
-var base64Img = null;
 
 var examples = {};
 
-// Default - shows what a default table looks like
-examples.auto = function () {
+// Basic - shows what a default table looks like
+examples.basic = function () {
     var doc = new jsPDF();
-    doc.autoTable(getColumns(), getData());
+    
+    // From HTML
+    doc.autoTable({html: '.table'});
+    
+    // From Javascript
+    let finalY = doc.previousAutoTable.finalY;
+    doc.text("From javascript arrays", 14, finalY + 15);
+    doc.autoTable({
+        startY: finalY + 20,
+        head: [
+            ['ID', 'Name', 'Email', 'Country', 'IP-address'],
+        ],
+        body: [
+            ['1', 'Donna', 'dmoore0@furl.net', 'China', '211.56.242.221'],
+            ['2', 'Janice', 'jhenry1@theatlantic.com', 'Ukraine', '38.36.7.199'],
+            ['3', 'Ruth', 'rwells2@constantcontact.com', 'Trinidad and Tobago', '19.162.133.184'],
+            ['4', 'Jason', 'jray3@psu.edu', 'Brazil', '10.68.11.42'],
+            ['5', 'Jane', 'jstephens4@go.com', 'United States', '47.32.129.71'],
+            ['6', 'Adam', 'anichols5@com.com', 'Canada', '18.186.38.37']
+        ],
+    });
+
+    finalY = doc.previousAutoTable.finalY;
+    doc.text("From HTML with CSS", 14, finalY + 15);
+    doc.autoTable({
+        startY: finalY + 20,
+        html: '.table',
+        useCss: true,
+    });
+    
     return doc;
 };
 
 // Minimal - shows how compact tables can be drawn
 examples.minimal = function () {
     var doc = new jsPDF();
-    doc.autoTable(getColumns(), getData(), {
+    doc.autoTable({
+        html: '.table',
         tableWidth: 'wrap',
         styles: {cellPadding: 0.5, fontSize: 8}
     });
@@ -51,34 +66,30 @@ examples.minimal = function () {
 // Long data - shows how the overflow features looks and can be used
 examples.long = function () {
     var doc = new jsPDF('l');
-    var columnsLong = getColumns().concat([
-        {title: "Title with\nlinebreak", dataKey: "text2"},
-        {title: "Long text column", dataKey: "text"},
-    ]);
-
-    doc.text(7, 15, "Overflow 'ellipsize' (default)");
-    doc.autoTable(columnsLong, getData(), {
-        startY: 20,
-        margin: {horizontal: 7},
-        styles: {columnWidth: 'wrap'},
-        columnStyles: {text: {columnWidth: 'auto'}}
+    
+    let head = headRows();
+    head[0]['text'] = 'Text';
+    let body = bodyRows(4);
+    body.forEach(function(row) {row['text'] = faker.lorem.sentence(100)});
+    
+    doc.text("Overflow 'ellipsize' with one column with long content", 14, 20);
+    doc.autoTable({
+        head: head,
+        body: body,
+        startY: 25,
+        // Default for all columns
+        styles: {overflow: 'ellipsize', cellWidth: 'wrap'},
+        // Override the default above for the text column
+        columnStyles: {text: {cellWidth: 'auto'}}
     });
-
-    doc.text("Overflow 'hidden'", 7, doc.autoTable.previous.finalY + 10);
-    doc.autoTable(columnsLong, getData(), {
-        startY: doc.autoTable.previous.finalY + 15,
-        margin: {horizontal: 7},
-        styles: {overflow: 'hidden', columnWidth: 'wrap'},
-        columnStyles: {text: {columnWidth: 'auto'}}
-    });
-
-    doc.text("Overflow 'linebreak'", 7, doc.autoTable.previous.finalY  + 10);
-    doc.autoTable(columnsLong, getData(3), {
-        startY: doc.autoTable.previous.finalY + 15,
-        margin: {horizontal: 7},
+    doc.text("Overflow 'linebreak' (default) with one column with long content", 14, doc.autoTable.previous.finalY + 10);
+    doc.autoTable({
+        head: head,
+        body: body,
+        startY: doc.previousAutoTable.finalY + 15,
         bodyStyles: {valign: 'top'},
-        styles: {overflow: 'linebreak', columnWidth: 'wrap'},
-        columnStyles: {text: {columnWidth: 'auto'}}
+        styles: {cellWidth: 'wrap', rowPageBreak: 'auto', halign: 'justify'},
+        columnStyles: {text: {cellWidth: 'auto'}}
     });
 
     return doc;
@@ -89,16 +100,22 @@ examples.content = function () {
     var doc = new jsPDF();
 
     doc.setFontSize(18);
-    doc.text('A story about a person', 14, 22);
+    doc.text('With content', 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
-    var pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
-    var text = doc.splitTextToSize(shuffleSentence(faker.lorem.words(55)) + '.', pageWidth - 35, {});
+    
+    // jsPDF 1.4+ uses getWidth, <1.4 uses .width
+    var pageSize = doc.internal.pageSize;
+    var pageWidth = pageSize.width ? pageSize.width : pageSize.getWidth();
+    var text = doc.splitTextToSize(faker.lorem.sentence(45), pageWidth - 35, {});
     doc.text(text, 14, 30);
 
-    var cols = getColumns();
-    cols.splice(0, 2);
-    doc.autoTable(cols, getData(40), {startY: 50, showHeader: 'firstPage'});
+    doc.autoTable({
+        head: headRows(),
+        body: bodyRows(40),
+        startY: 50, 
+        showHead: 'firstPage'
+    });
 
     doc.text(text, 14, doc.autoTable.previous.finalY + 10);
 
@@ -112,26 +129,33 @@ examples.multiple = function () {
     doc.text("Multiple tables", 14, 20);
     doc.setFontSize(12);
 
-    doc.autoTable(getColumns(), getData(10), {startY: 30});
-    let first = doc.autoTable.previous;
+    doc.autoTable({startY: 30, head: headRows(), body: bodyRows(25)});
+    
+    let pageNumber = doc.internal.getNumberOfPages();
 
-    doc.autoTable(getColumns().slice(0, 2), getData(30), {
-        startY: first.finalY + 10,
-        showHeader: 'firstPage',
+    doc.autoTable({
+        head: headRows(), body: bodyRows(15),
+        startY: 240,
+        showHead: 'firstPage',
+        styles: {overflow: 'hidden'},
         margin: {right: 107}
     });
     
-    // Reset page to the same as before previous table
-    doc.setPage(1 + doc.internal.getCurrentPageInfo().pageNumber - doc.autoTable.previous.pageCount);
+    doc.setPage(pageNumber);
 
-    doc.autoTable(getColumns().slice(0, 2), getData(30), {
-        startY: first.finalY + 10,
-        showHeader: 'firstPage',
+    doc.autoTable({
+        head: headRows(),
+        body: bodyRows(15),
+        startY: 240,
+        showHead: 'firstPage',
+        styles: {overflow: 'hidden'},
         margin: {left: 107}
     });
 
-    for (var j = 0; j < 6; j++) {
-        doc.autoTable(getColumns(), getData(9), {
+    for (var j = 0; j < 3; j++) {
+        doc.autoTable({
+            head: headRows(), 
+            body: bodyRows(),
             startY: doc.autoTable.previous.finalY + 10,
             pageBreak: 'avoid',
         });
@@ -140,44 +164,37 @@ examples.multiple = function () {
     return doc;
 };
 
-// From html - shows how pdf tables can be be drawn from html tables
-examples.html = function () {
-    var doc = new jsPDF();
-    doc.text("From HTML", 14, 16);
-    var elem = document.getElementById("basic-table");
-    var res = doc.autoTableHtmlToJson(elem);
-    doc.autoTable(res.columns, res.data, {startY: 20});
-    return doc;
-};
-
 // Header and footers - shows how header and footers can be drawn
 examples['header-footer'] = function () {
     var doc = new jsPDF();
     var totalPagesExp = "{total_pages_count_string}";
 
-    var pageContent = function (data) {
-        // HEADER
-        doc.setFontSize(20);
-        doc.setTextColor(40);
-        doc.setFontStyle('normal');
-        if (base64Img) {
-            doc.addImage(base64Img, 'JPEG', data.settings.margin.left, 15, 10, 10);
-        }
-        doc.text("Report", data.settings.margin.left + 15, 22);
+    doc.autoTable({
+        head: headRows(), 
+        body: bodyRows(40),
+        didDrawPage: function (data) {
+            // Header
+            doc.setFontSize(20);
+            doc.setTextColor(40);
+            doc.setFontStyle('normal');
+            if (base64Img) {
+                doc.addImage(base64Img, 'JPEG', data.settings.margin.left, 15, 10, 10);
+            }
+            doc.text("Report", data.settings.margin.left + 15, 22);
 
-        // FOOTER
-        var str = "Page " + data.pageCount;
-        // Total page number plugin only available in jspdf v1.0+
-        if (typeof doc.putTotalPages === 'function') {
-            str = str + " of " + totalPagesExp;
-        }
-        doc.setFontSize(10);
-        var pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-        doc.text(str, data.settings.margin.left, pageHeight  - 10);
-    };
-    
-    doc.autoTable(getColumns(), getData(40), {
-        addPageContent: pageContent,
+            // Footer
+            var str = "Page " + doc.internal.getNumberOfPages()
+            // Total page number plugin only available in jspdf v1.0+
+            if (typeof doc.putTotalPages === 'function') {
+                str = str + " of " + totalPagesExp;
+            }
+            doc.setFontSize(10);
+
+            // jsPDF 1.4+ uses getWidth, <1.4 uses .width
+            var pageSize = doc.internal.pageSize;
+            var pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+            doc.text(str, data.settings.margin.left, pageHeight - 10);
+        },
         margin: {top: 30}
     });
 
@@ -192,108 +209,83 @@ examples['header-footer'] = function () {
 // Minimal - shows how compact tables can be drawn
 examples.defaults = function () {
     // Global defaults
+    // (would apply to all documents if more than one were created)
     jsPDF.autoTableSetDefaults({
         columnStyles: {id: {fontStyle: 'bold'}},
-        headerStyles: {fillColor: 0},
+        headStyles: {fillColor: 0},
     });
-    
+
     var doc = new jsPDF();
-    
+
     // Document defaults
     doc.autoTableSetDefaults({
-        headerStyles: {fillColor: [155, 89, 182]}, // Purple
+        headStyles: {fillColor: [155, 89, 182]}, // Purple
         margin: {top: 25},
-        addPageContent: function(data) {
+        didDrawPage: function(data) {
             doc.setFontSize(20);
-            doc.text('Document specific header', data.settings.margin.left, 20);
+            doc.text('Default options', data.settings.margin.left, 20);
         }
     });
-    
-    doc.autoTable(getColumns(), getData());
-    
+
+    doc.autoTable({head: headRows(), body: bodyRows()});
+
     doc.addPage();
-    
-    doc.autoTable(getColumns(), getData(), {
-        // Will override document and global headerStyles
-        headerStyles: {fillColor: [231, 76, 60]} // Red
+
+    doc.autoTable({
+        head: headRows(), 
+        body: bodyRows(),
+        // Will override document and global head tyles
+        headStyles: {fillColor: [231, 76, 60]} // Red
     });
-    
+
     // Reset defaults
     doc.autoTableSetDefaults(null);
     jsPDF.autoTableSetDefaults(null);
-    
+
     return doc;
 };
 
-// Horizontal - shows how tables can be drawn with horizontal headers
-examples.horizontal = function () {
+// Column styles - shows how tables can be drawn with specific column styles
+examples.colstyles = function () {
     var doc = new jsPDF();
-    doc.autoTable(getColumns().splice(1, 4), getData(), {
-        showHeader: 'never',
+    doc.autoTable({
+        head: headRows(), 
+        body: bodyRows(),
+        showHead: false,
+        // Note that the "id" key below is the same as the column's dataKey used for 
+        // the head and body rows. If your data is entered in array form instead you have to 
+        // use the integer index instead i.e. `columnStyles: {5: {fillColor: [41, 128, 185], ...}}`
         columnStyles: {
-            name: {fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold'}
+            id: {fillColor: [41, 128, 185], textColor: 255, fontStyle: 'bold'}
         }
     });
     return doc;
 };
 
 
-// Custom style - shows how custom styles can be applied to tables
-examples.spans = function () {
+// Col spans and row spans
+examples.spans = function() {
     var doc = new jsPDF('p', 'pt');
     doc.setFontSize(12);
     doc.setTextColor(0);
     doc.setFontStyle('bold');
-    doc.text('Col and row span', 40, 50);
-    var data = getData(80);
-    data.sort(function (a, b) {
-        return parseFloat(b.expenses) - parseFloat(a.expenses);
-    });
-    doc.autoTable(getColumns(), data, {
-        theme: 'grid',
-        startY: 60,
-        drawRow: function (row, data) {
-            // Colspan
-            doc.setFontStyle('bold');
-            doc.setFontSize(10);
-            if (row.index === 0) {
-                doc.setTextColor(200, 0, 0);
-                doc.rect(data.settings.margin.left, row.y, data.table.width, 20, 'S');
-                doc.autoTableText("Priority Group", data.settings.margin.left + data.table.width / 2, row.y + row.height / 2, {
-                    halign: 'center',
-                    valign: 'middle'
-                });
-                data.cursor.y += 20;
-            } else if (row.index === 5) {
-                doc.rect(data.settings.margin.left, row.y, data.table.width, 20, 'S');
-                doc.autoTableText("Other Groups", data.settings.margin.left + data.table.width / 2, row.y + row.height / 2, {
-                    halign: 'center',
-                    valign: 'middle'
-                });
-                data.cursor.y += 20;
-            }
+    doc.text('Rowspan and colspan', 40, 50);
 
-            if (row.index % 5 === 0) {
-                var posY = row.y + row.height * 6 + data.settings.margin.bottom;
-                var pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
-                if (posY > pageHeight) {
-                    data.addPage();
-                }
-            }
-        },
-        drawCell: function (cell, data) {
-            // Rowspan
-            if (data.column.dataKey === 'id') {
-                if (data.row.index % 5 === 0) {
-                    doc.rect(cell.x, cell.y, data.table.width, cell.height * 5, 'S');
-                    doc.autoTableText(data.row.index / 5 + 1 + '', cell.x + cell.width / 2, cell.y + cell.height * 5 / 2, {
-                        halign: 'center',
-                        valign: 'middle'
-                    });
-                }
-                return false;
-            }
+    let body = bodyRows(40);
+    for (var i = 0; i < body.length; i++) {
+        var row = body[i];
+        if (i % 5 === 0) {
+            row['id'] = {rowSpan: 5, content: i / 5 + 1, styles: {valign: 'middle', halign: 'center'}};
         }
+    }
+    let head = headRows();
+    head[0]['id'] = {content: 'People', colSpan: 5, styles: {halign: 'center', fillColor: [22, 160, 133]}};
+    
+    doc.autoTable({
+        startY: 60,
+        head: head,
+        body: body,
+        theme: 'grid'
     });
     return doc;
 };
@@ -305,30 +297,38 @@ examples.themes = function () {
     doc.setFontStyle('bold');
 
     doc.text('Theme "striped"', 14, 16);
-    doc.autoTable(getColumns(), getData(), {startY: 20});
+    doc.autoTable({head: headRows(), body: bodyRows(5), startY: 20});
 
     doc.text('Theme "grid"', 14, doc.autoTable.previous.finalY + 10);
-    doc.autoTable(getColumns(), getData(), {startY: doc.autoTable.previous.finalY + 14, theme: 'grid'});
+    doc.autoTable({head: headRows(), body: bodyRows(5), startY: doc.autoTable.previous.finalY + 14, theme: 'grid'});
 
     doc.text('Theme "plain"', 14, doc.autoTable.previous.finalY + 10);
-    doc.autoTable(getColumns(), getData(), {startY: doc.autoTable.previous.finalY + 14, theme: 'plain'});
+    doc.autoTable({head: headRows(), body: bodyRows(5), startY: doc.autoTable.previous.finalY + 14, theme: 'plain'});
 
     return doc;
 };
 
-// Custom style - shows how custom styles can be applied to tables
+// Custom style - shows how custom styles can be applied
 examples.custom = function () {
     var doc = new jsPDF();
-    doc.autoTable(getColumns().slice(1, 5), getData(20), {
-        tableLineColor: [189, 195, 199],
-        tableLineWidth: 0.75,
+    doc.autoTable({
+        head: headRows(), 
+        body: bodyRows(),
+        foot: headRows(),
+        startY: 37,
+        tableLineColor: [231, 76, 60],
+        tableLineWidth: 1,
         styles: {
             font: 'courier',
             lineColor: [44, 62, 80],
-            lineWidth: 0.75
+            lineWidth: 1
         },
-        headerStyles: {
-            fillColor: [44, 62, 80],
+        headStyles: {
+            fillColor: [241, 196, 15],
+            fontSize: 15
+        },
+        footStyles: {
+            fillColor: [241, 196, 15],
             fontSize: 15
         },
         bodyStyles: {
@@ -338,23 +338,55 @@ examples.custom = function () {
         alternateRowStyles: {
             fillColor: [74, 96, 117]
         },
+        // Note that the "email" key below is the same as the column's dataKey used for 
+        // the head and body rows. If your data is entered in array form instead you have to 
+        // use the integer index instead i.e. `columnStyles: {5: {fillColor: [41, 128, 185], ...}}`
         columnStyles: {
             email: {
                 fontStyle: 'bold'
+            },
+            id: {
+                halign  : 'right'
             }
         },
-        /*parsedInput: function (cell, data) {
-            if (data.column.dataKey === 'expenses') {
-                cell.styles.halign = 'right';
-                if (cell.raw > 600) {
-                    cell.styles.textColor = [255, 100, 100];
-                    cell.styles.fontStyle = 'bolditalic';
-                }
-                cell.text = '$' + cell.text;
-            } else if (data.column.dataKey === 'name') {
-                cell.text = cell.raw.split(' ')[0]; // only first name
+        allSectionHooks: true,
+        // Use for customizing texts or styles of specific cells after they have been formatted by this plugin. 
+        // This hook is called just before the column width and other features are computed.
+        didParseCell: function(data) {
+            if (data.row.index === 5) {
+                data.cell.styles.fillColor = [40, 170, 100];
             }
-        }*/
+
+            if ((data.row.section === 'head' || data.row.section === 'foot') && data.column.dataKey === "expenses") {
+                data.cell.text = '' // Use an icon in didDrawCell instead
+            }
+        },
+        // Use for changing styles with jspdf functions or customize the positioning of cells or cell text
+        // just before they are drawn to the page.
+        willDrawCell: function(data) {
+            if (data.row.section === 'body' && data.column.dataKey === "expenses") {
+                if (data.cell.raw > 750) {
+                    doc.setTextColor(231, 76, 60); // Red
+                    doc.setFontStyle('bold');
+                }
+            }
+        },
+        // Use for adding content to the cells after they are drawn. This could be images or links.
+        // You can also use this to draw other custom jspdf content to cells with doc.text or doc.rect 
+        // for example.
+        didDrawCell: function(data) {
+            if ((data.row.section === 'head' || data.row.section === 'foot') && data.column.dataKey === "expenses" && coinBase64Img) {
+                doc.addImage(coinBase64Img, 'PNG', data.cell.x + 5, data.cell.y + 2, 5, 5);
+            }
+        },
+        // Use this to add content to each page that has the autoTable on it. This can be page headers,
+        // page footers and page numbers for example.
+        didDrawPage: function(data) {
+            doc.setFontSize(18);
+            doc.text("Custom styling with hooks", data.settings.margin.left, 22);
+            doc.setFontSize(12);
+            doc.text("Conditional styling of cells, rows and columns, cell and table borders, custom font, image in cell", data.settings.margin.left, 30)
+        },
     });
     return doc;
 };
@@ -365,68 +397,50 @@ examples.custom = function () {
  |--------------------------------------------------------------------------
  */
 
-// Returns a new array each time to avoid pointer issues
-var getColumns = function () {
-    return [
-        {title: "ID", dataKey: "id"},
-        {title: "Name", dataKey: "name"},
-        {title: "Email", dataKey: "email"},
-        {title: "City", dataKey: "city"},
-        {title: "Expenses", dataKey: "expenses"}
-    ];
-};
+function headRows() {
+    return [{id: 'ID', name: 'Name', email: 'Email', city: 'City', expenses: 'Sum'}];
+}
 
-// Uses the faker.js library to get random data.
-function getData(rowCount) {
-    rowCount = rowCount || 4;
-    //var sentence = "Minima quis totam nobis nihil et molestiae architecto accusantium qui necessitatibus sit ducimus cupiditate qui ullam et aspernatur esse et dolores ut voluptatem odit quasi ea sit ad sint voluptatem est dignissimos voluptatem vel adipisci facere consequuntur et reprehenderit cum unde debitis ab cumque sint quo ut officiis rerum aut quia quia expedita ut consectetur animiqui voluptas suscipit Monsequatur";
-    var sentence = faker.lorem.words(20);
-    var data = [];
+function footRows() {
+    return [{id: 'ID', name: 'Name', email: 'Email', city: 'City', expenses: 'Sum'}];
+}
+
+function columns() {
+    return [
+        {header: 'ID', dataKey: 'id'},
+        {header: 'Name', dataKey: 'name'},
+        {header: 'Email', dataKey: 'email'},
+        {header: 'City', dataKey: 'city'},
+        {header: 'Exp', dataKey: 'expenses'},
+    ]
+}
+
+function data(rowCount) {
+    rowCount = rowCount || 10;
+    let body = [];
     for (var j = 1; j <= rowCount; j++) {
-        data.push({
+        body.push({
             id: j,
             name: faker.name.findName(),
             email: faker.internet.email(),
-            country: faker.address.country(),
             city: faker.address.city(),
             expenses: faker.finance.amount(),
-            text: shuffleSentence(sentence),
-            text2: faker.lorem.words(1)
         });
     }
-    return data;
+    return body;
 }
 
-function shuffleSentence(words) {
-    if (typeof words === 'string') return words;
-    words = words || faker.lorem.words(8);
-    var str = faker.helpers.shuffle(words).join(' ').trim();
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-imgToBase64('document.jpg', function(base64) {
-    base64Img = base64; 
-});
-
-// You could either use a function similar to this or pre convert an image with for example http://dopiaza.org/tools/datauri
-// https://stackoverflow.com/a/20285053/827047
-function imgToBase64(src, callback) {
-    var outputFormat = src.substr(-3) === 'png' ? 'image/png' : 'image/jpeg';
-    var img = new Image();
-    img.crossOrigin = 'Anonymous';
-    img.onload = function() {
-        var canvas = document.createElement('CANVAS');
-        var ctx = canvas.getContext('2d');
-        var dataURL;
-        canvas.height = this.naturalHeight;
-        canvas.width = this.naturalWidth;
-        ctx.drawImage(this, 0, 0);
-        dataURL = canvas.toDataURL(outputFormat);
-        callback(dataURL);
-    };
-    img.src = src;
-    if (img.complete || img.complete === undefined) {
-        img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-        img.src = src;
+function bodyRows(rowCount) {
+    rowCount = rowCount || 10;
+    let body = [];
+    for (var j = 1; j <= rowCount; j++) {
+        body.push({
+            id: j,
+            name: faker.name.findName(),
+            email: faker.internet.email(),
+            city: faker.address.city(),
+            expenses: faker.finance.amount(),
+        });
     }
+    return body;
 }
