@@ -66,12 +66,20 @@ Below is a list of all options supported in the plugin. All of them are used in 
 ##### Content options
 The only thing required is either the html or body option. If you want more control over the columns you can specify the columns property. It is not needed however and if not set the columns will be automatically computed based on the content of the html content or head, body and foot.
 
-- `html: string|HTMLTableElement` A css selector (for example "#table") or an html table element.
-- `head: CellDef[][]` For example [['ID', 'Name', 'Country']]
-- `body: CellDef[][]` For example [['1', 'Simon', 'Sweden'], ['2', 'Karl', 'Norway']]
-- `foot: CellDef[][]` For example [['ID', 'Name', 'Country']]
-- `columns: ColumnDef[]` For example [{header: 'ID', dataKey: 'id'}, {header: 'Name', dataKey: 'name'}]. Only use this option if you want more control over the columns. If not specified the columns will be automatically generated based on the content in html or head/body/foot
-- `includeHiddenHtml: boolean = false` If hidden html with `display: none` should be included or not when the content comes from an html table
+option | type | description
+------ | ---- | -----------
+html | string<br>HTMLTableElement | A css selector (for example "#table") or an html table element.
+head | `CellDef[][]` | For example [['ID', 'Name', 'Country']]
+body | `CellDef[][]` | For example [['1', 'Simon', 'Sweden'], ['2', 'Karl', 'Norway']]
+foot | `CellDef[][]` | For example [['ID', 'Name', 'Country']]
+columns | `ColumnDef[]` | For example [{header: 'ID', dataKey: 'id'}, {header: 'Name', dataKey: 'name'}]. Only use this option if you want more control over the columns. If not specified the columns will be automatically generated based on the content in html or head/body/foot
+includeHiddenHtml | boolean | If hidden html with `display: none` should be included or not when the content comes from an html table. Defaults to false
+
+###### Classes
+
+Class | type | description
+----- | ---- | -----------
+CellDev | string<br>`{content: string, rowSpan: number, colSpan: number, styles: StyleDef}` | 
 
 `CellDef: string|{content: string, rowSpan: number, colSpan: number, styles: StyleDef}`
 Note that cell styles can also be set dynamically with hooks.
